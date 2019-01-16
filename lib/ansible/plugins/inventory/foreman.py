@@ -113,7 +113,7 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
             self.session.verify = self.get_option('validate_certs')
         return self.session
 
-    def _get_json(self, url, ignore_errors=None):
+    def _get_json(self, url, ignore_errors=None, params=None):
 
         if not self.use_cache or url not in self._cache.get(self.cache_key, {}):
 
@@ -122,7 +122,12 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
 
             results = []
             s = self._get_session()
-            params = {'page': 1, 'per_page': 250}
+
+            if not params:
+                params = {}
+            params['page'] = 1
+            params['per_page'] = 250
+
             while True:
                 ret = s.get(url, params=params)
                 if ignore_errors and ret.status_code in ignore_errors:
@@ -159,8 +164,11 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
 
         return self._cache[self.cache_key][url]
 
-    def _get_hosts(self):
-        return self._get_json("%s/api/v2/hosts" % self.foreman_url)
+    def _get_hosts(self, want_params):
+        params = {}
+        if want_params:
+            params['include'] = ['all_parameters']
+        return self._get_json("%s/api/v2/hosts" % self.foreman_url, params=params)
 
     def _get_all_params_by_id(self, hid):
         url = "%s/api/v2/hosts/%s" % (self.foreman_url, hid)
@@ -195,7 +203,9 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
 
     def _populate(self):
 
-        for host in self._get_hosts():
+        want_params = self.get_option('want_params')
+
+        for host in self._get_hosts(want_params):
 
             if host.get('name'):
                 self.inventory.add_host(host['name'])
@@ -219,8 +229,13 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
                     self.display.warning("Could not get host info for %s, skipping: %s" % (host['name'], to_native(e)))
 
                 # set host vars from params
-                if self.get_option('want_params'):
-                    for k, v in self._get_all_params_by_id(host['id']).items():
+                if want_params:
+                    try:
+                        all_parameters = host['all_parameters']
+                    except KeyError:  # fallback for Foreman 1.13 and older
+                        all_parameters = self._get_all_params_by_id(host['id'])
+
+                    for k, v in all_parameters.items():
                         try:
                             self.inventory.set_variable(host['name'], k, v)
                         except ValueError as e:
