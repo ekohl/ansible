@@ -167,7 +167,7 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
         ret = self._get_json(url, [404])
         if not ret or not isinstance(ret, MutableMapping) or not ret.get('all_parameters', False):
             ret = {'all_parameters': [{}]}
-        return ret.get('all_parameters')[0]
+        return {parameter['name']: parameter['value'] for parameter in ret['all_parameters']}
 
     def _get_facts_by_id(self, hid):
         url = "%s/api/v2/hosts/%s/facts" % (self.foreman_url, hid)
