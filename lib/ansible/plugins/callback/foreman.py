@@ -136,7 +136,7 @@ class CallbackModule(CallbackBase):
 
         super(CallbackModule, self).set_options(task_keys=task_keys, var_options=var_options, direct=direct)
 
-        self.FOREMAN_URL = self.get_option('url')
+        self.foreman_url = self.get_option('url')
         ssl_cert = self.get_option('client_cert')
         ssl_key = self.get_option('client_key')
 
@@ -146,7 +146,7 @@ class CallbackModule(CallbackBase):
         else:
             self._disable_plugin(u'The `requests` python module is not installed.')
 
-        if self.FOREMAN_URL.startswith('https://'):
+        if self.foreman_url.startswith('https://'):
             if not os.path.exists(ssl_cert):
                 self._disable_plugin(u'FOREMAN_SSL_CERT %s not found.' % ssl_cert)
 
@@ -170,7 +170,7 @@ class CallbackModule(CallbackBase):
         elif option.lower() in ["0", "false", "off"]:
             requests.packages.urllib3.disable_warnings()
             self._display.warning(u"SSL verification of %s disabled" %
-                                  self.FOREMAN_URL)
+                                  self.foreman_url)
             verify = False
         else:  # Set to a CA bundle:
             verify = option
@@ -192,12 +192,13 @@ class CallbackModule(CallbackBase):
                 },
             }
 
+            url = self.foreman_url + '/api/v2/hosts/facts'
             try:
-                r = self.session.post(url=self.FOREMAN_URL + '/api/v2/hosts/facts', json=facts)
-                r.raise_for_status()
+                response = self.session.post(url=url, json=facts)
+                response.raise_for_status()
             except requests.exceptions.RequestException as err:
                 self._display.warning(u'Sending facts to Foreman at {url} failed for {host}: {err}'.format(
-                    host=host, err=to_text(err), url=self.FOREMAN_URL))
+                    host=host, err=to_text(err), url=self.foreman_url))
 
     def send_reports(self, stats):
         """
@@ -225,12 +226,13 @@ class CallbackModule(CallbackBase):
                 }
             }
 
+            url = self.foreman_url + '/api/v2/config_reports'
             try:
-                r = self.session.post(url=self.FOREMAN_URL + '/api/v2/config_reports', json=report)
-                r.raise_for_status()
+                response = self.session.post(url=url, json=report)
+                response.raise_for_status()
             except requests.exceptions.RequestException as err:
                 self._display.warning(u'Sending report to Foreman at {url} failed for {host}: {err}'.format(
-                    host=host, err=to_text(err), url=self.FOREMAN_URL))
+                    host=host, err=to_text(err), url=self.foreman_url))
 
             self.items[host] = []
 
