@@ -113,14 +113,18 @@ def get_time():
     except AttributeError:
         return time.time()
 
+def get_now():
+    """
+    Return the current timestamp as a string to be sent over the network.
+    """
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S %f")
+
 
 class CallbackModule(CallbackBase):
     CALLBACK_VERSION = 2.0
     CALLBACK_TYPE = 'notification'
     CALLBACK_NAME = 'foreman'
     CALLBACK_NEEDS_WHITELIST = True
-
-    TIME_FORMAT = "%Y-%m-%d %H:%M:%S %f"
 
     def __init__(self):
         super(CallbackModule, self).__init__()
@@ -182,7 +186,7 @@ class CallbackModule(CallbackBase):
                 "facts": {
                     "ansible_facts": self.facts[host],
                     "_type": "ansible",
-                    "_timestamp": datetime.now().strftime(self.TIME_FORMAT),
+                    "_timestamp": get_now(),
                 },
             }
 
@@ -212,7 +216,7 @@ class CallbackModule(CallbackBase):
             status["skipped"] = total['skipped']
             log = list(build_log(self.items[host]))
             metrics["time"] = {"total": int(get_time() - self.start_time)}
-            now = datetime.now().strftime(self.TIME_FORMAT)
+            now = get_now()
             report = {
                 "config_report": {
                     "host": host,
