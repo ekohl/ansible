@@ -72,6 +72,7 @@ import time
 
 try:
     import requests
+    from distutils.version import LooseVersion
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -86,10 +87,6 @@ class CallbackModule(CallbackBase):
     CALLBACK_NAME = 'foreman'
     CALLBACK_NEEDS_WHITELIST = True
 
-    FOREMAN_HEADERS = {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
     TIME_FORMAT = "%Y-%m-%d %H:%M:%S %f"
 
     def __init__(self):
@@ -109,9 +106,8 @@ class CallbackModule(CallbackBase):
         self.ssl_verify = self._ssl_verify()
 
         if HAS_REQUESTS:
-            requests_major = int(requests.__version__.split('.')[0])
-            if requests_major < 2:
-                self._disable_plugin('The `requests` python module is too old.')
+            if LooseVersion(requests.__version__) < LooseVersion('2.14.0'):
+                self._disable_plugin('The `requests` python module must be >= 2.14.0.')
         else:
             self._disable_plugin('The `requests` python module is not installed.')
 
@@ -159,8 +155,7 @@ class CallbackModule(CallbackBase):
 
             try:
                 r = requests.post(url=self.FOREMAN_URL + '/api/v2/hosts/facts',
-                                  data=json.dumps(facts),
-                                  headers=self.FOREMAN_HEADERS,
+                                  json=facts,
                                   cert=self.FOREMAN_SSL_CERT,
                                   verify=self.ssl_verify)
                 r.raise_for_status()
@@ -219,8 +214,7 @@ class CallbackModule(CallbackBase):
             }
             try:
                 r = requests.post(url=self.FOREMAN_URL + '/api/v2/config_reports',
-                                  data=json.dumps(report),
-                                  headers=self.FOREMAN_HEADERS,
+                                  json=report,
                                   cert=self.FOREMAN_SSL_CERT,
                                   verify=self.ssl_verify)
                 r.raise_for_status()
