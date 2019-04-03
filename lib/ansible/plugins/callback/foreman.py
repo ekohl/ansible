@@ -117,7 +117,7 @@ def get_now():
     """
     Return the current timestamp as a string to be sent over the network.
     """
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S %f")
+    return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
 class CallbackModule(CallbackBase):
