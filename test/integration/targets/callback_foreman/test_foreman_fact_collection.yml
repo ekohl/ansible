@@ -1,0 +1,72 @@
+---
+- hosts: localhost
+  vars:
+    verification_host: "{{ lookup('env', 'HOST_UNDER_TEST') }}"
+    foreman_protocol: "{{ lookup('env', 'FOREMAN_PROTOCOL') }}"
+    foreman_host: "{{ lookup('env', 'FOREMAN_HOST') }}"
+    foreman_port: "{{ lookup('env', 'FOREMAN_PORT') }}"
+    foreman_user: "{{ lookup('env', 'FOREMAN_USER') }}"
+    foreman_pass: "{{ lookup('env', 'FOREMAN_PASS') }}"
+    foreman_base_uri: "{{ foreman_protocol }}://{{ foreman_host }}:{{ foreman_port }}"
+    foreman_api_uri: "{{ foreman_base_uri }}/api/v2"
+  tasks:
+  - debug:
+      msg: >-
+        Foreman API URL: {{ foreman_api_uri }} |
+        Foreman API username: {{ foreman_user }} |
+        Foreman API password: {{ foreman_pass }}
+
+  - name: Wait for Foreman API to come up online
+    wait_for:
+      host: "{{ foreman_host }}"
+      port: "{{ foreman_port }}"
+      state: started
+
+  # smoke test that flask app is serving
+  - name: Smoke test HTTP response from Foreman
+    uri:
+      url: "{{ foreman_base_uri }}/ping"
+      return_content: yes
+    register: heartbeat_resp
+    failed_when: >
+        heartbeat_resp.json.status != 'ok' or heartbeat_resp.json.response != 'pong'
+
+  #### Testing start
+  - name: Get host facts
+    uri:
+      url: "{{ foreman_api_uri }}/hosts/{{ verification_host }}/facts?per_page=9999999"
+      user: "{{ foreman_user }}"
+      password: "{{ foreman_pass }}"
+      force_basic_auth: yes
+      validate_certs: False
+    register: host_facts_resp
+
+  - name: "Facts for {{ verification_host }}"
+    debug:
+      var: host_facts_resp.json['results'][verification_host]
+
+  - assert:
+      that:
+        - "'my_custom_fact' in host_facts_resp.json['results'][verification_host]"
+        - "'my_other_fact' in host_facts_resp.json['results'][verification_host]"
+
+  - name: Get last config report
+    uri:
+      url: "{{ foreman_api_uri }}/hosts/{{ verification_host }}/config_reports/last"
+      user: "{{ foreman_user }}"
+      password: "{{ foreman_pass }}"
+      force_basic_auth: yes
+      validate_certs: False
+    register: host_config_report_resp
+
+  - name: "Config report for {{ verification_host }}"
+    debug:
+      var: host_config_report_resp.json
+
+  - assert:
+      that:
+        - "host_config_report_resp.json['logs']|length == 4"
+        - "host_config_report_resp.json['logs'][0]['source']['source'] == 'Gathering Facts'"
+        - "host_config_report_resp.json['logs'][1]['source']['source'] == 'Test'"
+        - "host_config_report_resp.json['logs'][2]['source']['source'] == 'Set a fact'"
+        - "host_config_report_resp.json['logs'][3]['source']['source'] == 'Set another fact'"

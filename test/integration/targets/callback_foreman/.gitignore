@@ -1,0 +1,3 @@
+ansible.cfg
+test-config.foreman.yaml
+foreman_cache/

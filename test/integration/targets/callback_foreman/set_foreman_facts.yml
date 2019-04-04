@@ -1,0 +1,14 @@
+---
+- hosts: "{{ lookup('env', 'HOST_UNDER_TEST') }}"
+  tasks:
+    - name: "Test"
+      debug:
+        msg: "I'm running on {{ inventory_hostname }}"
+
+    - name: "Set a fact"
+      set_fact:
+        my_custom_fact: "Is awesome"
+
+    - name: "Set another fact"
+      set_fact:
+        my_other_fact: "Doesn't overwrite my first"
